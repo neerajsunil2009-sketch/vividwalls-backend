@@ -10,38 +10,40 @@ app.use(cors());
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
 app.get('/download', async (req, res) => {
-    let fileUrl = req.query.url;
-    const fileName = req.query.name || 'VividWall.jpg';
-
-    console.log(`📥 Request received for: ${fileUrl}`);
-
-    // CHECK: Is it a local file or a website link?
-    if (fileUrl.startsWith('images/') || !fileUrl.startsWith('http')) {
-        // --- LOCAL FILE LOGIC ---
-        const localPath = path.join(__dirname, fileUrl);
-        console.log(`🏠 Serving local file from: ${localPath}`);
-        
-        return res.download(localPath, fileName, (err) => {
-            if (err) {
-                console.error("❌ Local file error:", err.message);
-                res.status(404).send('Local image not found on server.');
-            }
-        });
-    } else {
-        // --- EXTERNAL LINK LOGIC (Unsplash/Pexels) ---
-        try {
-            const response = await axios({
-                url: fileUrl,
-                method: 'GET',
-                responseType: 'stream'
-            });
-            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-            response.data.pipe(res);
-            console.log(`✅ External download starting: ${fileName}`);
-        } catch (e) {
-            console.error("❌ External fetch error:", e.message);
-            res.status(500).send('Server could not fetch the external image.');
+    try {
+        const imageUrl = req.query.url;
+        if (!imageUrl) {
+            return res.status(400).send('URL is required');
         }
+
+        // 1. Fetch the wallpaper file from the external API
+        const response = await axios({
+            url: imageUrl,
+            method: 'GET',
+            responseType: 'stream'
+        });
+
+        // 2. Dynamically determine the correct file extension
+        let extension = 'jpg'; // Default to jpg for standard images
+        
+        // Check if the URL string itself mentions mp4, or if the API headers say it's a video
+        const contentType = response.headers['content-type'] || '';
+        if (imageUrl.includes('.mp4') || contentType.includes('video/mp4')) {
+            extension = 'mp4';
+        } else if (imageUrl.includes('.webp') || contentType.includes('image/webp')) {
+            extension = 'webp';
+        }
+
+        // 3. Set the download headers with the correct extension type
+        res.setHeader('Content-Disposition', `attachment; filename="Vivid_Walls_Download.${extension}"`);
+        res.setHeader('Content-Type', contentType || (extension === 'mp4' ? 'video/mp4' : 'image/jpeg'));
+
+        // 4. Pipe the file stream directly to the user's browser
+        response.data.pipe(res);
+
+    } catch (error) {
+        console.error('Download error:', error);
+        res.status(500).send('Error downloading file');
     }
 });
 
