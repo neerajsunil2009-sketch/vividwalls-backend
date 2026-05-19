@@ -12,6 +12,9 @@ app.use('/images', express.static(path.join(__dirname, 'images')));
 app.get('/download', async (req, res) => {
     try {
         const imageUrl = req.query.url;
+        // Grab the custom name sent over by the frontend (default to 'wallpaper' if empty)
+        const customName = req.query.name || 'wallpaper'; 
+
         if (!imageUrl) {
             return res.status(400).send('URL is required');
         }
@@ -24,9 +27,7 @@ app.get('/download', async (req, res) => {
         });
 
         // 2. Dynamically determine the correct file extension
-        let extension = 'jpg'; // Default to jpg for standard images
-        
-        // Check if the URL string itself mentions mp4, or if the API headers say it's a video
+        let extension = 'jpg'; 
         const contentType = response.headers['content-type'] || '';
         if (imageUrl.includes('.mp4') || contentType.includes('video/mp4')) {
             extension = 'mp4';
@@ -34,8 +35,8 @@ app.get('/download', async (req, res) => {
             extension = 'webp';
         }
 
-        // 3. Set the download headers with the correct extension type
-        res.setHeader('Content-Disposition', `attachment; filename="Vivid_Walls_Download.${extension}"`);
+        // 3. Set the download headers using your custom name variable!
+        res.setHeader('Content-Disposition', `attachment; filename="Vivid_Walls_${customName}.${extension}"`);
         res.setHeader('Content-Type', contentType || (extension === 'mp4' ? 'video/mp4' : 'image/jpeg'));
 
         // 4. Pipe the file stream directly to the user's browser
